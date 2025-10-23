@@ -263,6 +263,150 @@ Build an LLM-agnostic Python SDK implementing Progressive Disclosure Architectur
 
 ---
 
+## Phase 6: Tool System Security & Robustness
+**Timeline**: Week 9
+**Status**: Not Started
+**Priority**: CRITICAL before production use
+
+### 6.1 Security Fixes (CRITICAL)
+- [ ] **Path Traversal Protection**
+  - Create SecurityMixin class with path validation
+  - Restrict file access to allowed base directories
+  - Block attempts to escape working directory (e.g., ../../.env)
+  - Apply validation to all file tools
+  - Raise SecurityError for unauthorized access attempts
+
+- [ ] **File Size Limits**
+  - Add MAX_FILE_SIZE for read operations (default: 1MB)
+  - Add MAX_FILE_SIZE for write operations (default: 10MB)
+  - Make limits configurable per tool instance
+  - Prevent memory exhaustion from large files
+  - Clear error messages when limits exceeded
+
+- [ ] **Approval System Implementation**
+  - Implement approval checking in agent loop
+  - User confirmation prompts with tool details
+  - Support batch approval for multiple tools
+  - Add --auto-approve flag for automation/testing
+  - Set requires_approval=True for WriteFileTool
+  - Block execution until user confirms
+
+### 6.2 Robustness Improvements (HIGH PRIORITY)
+- [ ] **Tool Result Validation**
+  - Validate results are non-None before adding to conversation
+  - Add length limits for tool results (max 50K characters)
+  - Implement truncation strategy for large results
+  - Improve error serialization in JSON format
+  - Add context about what was truncated
+
+- [ ] **Parameter Schema Validation**
+  - Add jsonschema library dependency
+  - Validate tool arguments against parameter schema
+  - Perform validation in ToolRegistry.execute()
+  - Return clear validation errors to LLM
+  - Prevent malformed tool calls
+
+- [ ] **Context Window Management**
+  - Track cumulative token usage across iterations
+  - Add warnings when approaching context limits
+  - Implement result truncation when needed
+  - Design conversation pruning strategy
+
+### 6.3 Code Quality & Logging (MEDIUM PRIORITY)
+- [ ] **Logging Infrastructure**
+  - Replace console.print with Python logging module
+  - Add log levels: DEBUG, INFO, WARNING, ERROR
+  - Log all tool executions with arguments
+  - Log token usage and iteration counts
+  - Make console output optional/configurable
+
+- [ ] **Code Quality Fixes**
+  - Extract hard-coded magic numbers to constants
+  - Make search result limit (currently :50) configurable
+  - Standardize error message formatting
+  - Fix inconsistent error messages across tools
+
+### 6.4 Comprehensive Testing (HIGH PRIORITY)
+- [ ] **Security Tests**
+  - Test path traversal attack attempts (should fail)
+  - Test file size limit enforcement
+  - Test approval system bypass attempts
+  - Test unauthorized file access scenarios
+
+- [ ] **Unit Tests**
+  - Test each tool with valid inputs
+  - Test all file tools (read, write, list, search)
+  - Test registry operations (register, execute, errors)
+  - Test agent loop with tool calls
+  - Test error handling for missing files
+  - Test parameter validation
+
+- [ ] **Integration Tests**
+  - Test full agent loop with multiple tool calls
+  - Test tool result truncation
+  - Test context window overflow handling
+  - Test approval workflow end-to-end
+  - Test error recovery scenarios
+
+- [ ] **Coverage Requirements**
+  - Target: 80%+ code coverage
+  - All critical paths covered
+  - Security functions 100% covered
+
+### 6.5 Performance Optimizations (LOW PRIORITY)
+- [ ] Stream file reading in SearchFilesTool
+- [ ] Add early termination for large directory listings
+- [ ] Cache frequently accessed files (optional)
+- [ ] Add progress indicators for long-running operations
+
+### New Dependencies
+```toml
+dependencies = [
+    # ... existing dependencies ...
+    "jsonschema>=4.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+]
+```
+
+### New Files to Create
+```
+src/simple_agent/
+└── tools/
+    ├── security.py       # Security utilities and SecurityMixin
+    └── validation.py     # Schema validation helpers
+
+tests/                    # Test suite
+├── __init__.py
+├── test_file_tools.py    # File tool tests
+├── test_security.py      # Security tests
+├── test_registry.py      # Registry tests
+├── test_agent.py         # Agent loop tests
+└── conftest.py           # Pytest configuration
+```
+
+### Success Criteria
+- ✓ All path traversal attempts blocked
+- ✓ File size limits enforced on all operations
+- ✓ Approval system functional for destructive operations
+- ✓ 80%+ test coverage achieved
+- ✓ All tests passing
+- ✓ Zero critical security vulnerabilities
+- ✓ Proper logging throughout
+- ✓ No magic numbers in code
+
+### Breaking Changes
+- File tools will require paths within allowed directories
+- WriteFileTool will require user approval by default
+- Large file operations (>1MB read, >10MB write) will be rejected
+- Tool results over 50K characters will be truncated
+
+---
+
 ## Future Enhancements
 **Post v1.0**
 

@@ -1,17 +1,19 @@
 """
 SimpleAgent - LLM Agent with Progressive Disclosure Architecture
 
-Implements single-turn task execution and multi-turn chat.
-Agent loop will be restored when tool calling support is added.
+Implements agent loop with tool calling support:
+Gather -> Act -> Verify -> Repeat
 """
 
 import os
+import json
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 import litellm
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from .tools import ToolRegistry
 
 # Load environment variables (automatically searches parent directories)
 load_dotenv()
@@ -22,18 +24,19 @@ console = Console()
 
 class SimpleAgent:
     """
-    Core agent that uses LiteLLM to accomplish tasks.
+    Core agent that uses LiteLLM and tools to accomplish tasks.
 
-    Current Implementation:
+    Features:
     - Single-turn task execution with run()
     - Multi-turn conversations with chat()
+    - Tool calling support (file operations, search, etc.)
+    - Agent loop: while(tool_calls) -> execute -> repeat
     - Beautiful console output with Rich
     - Proper error handling and validation
 
     Future:
-    - Tool calling support
-    - Agent loop (Gather -> Act -> Verify -> Repeat)
     - Skills system for progressive disclosure
+    - Sub-agent support via task tool
     """
 
     def __init__(
@@ -41,7 +44,9 @@ class SimpleAgent:
         model: Optional[str] = None,
         api_key: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        timeout: int = 30
+        timeout: int = 30,
+        tool_registry: Optional[ToolRegistry] = None,
+        max_iterations: int = 15
     ):
         """
         Initialize SimpleAgent.
@@ -53,6 +58,8 @@ class SimpleAgent:
                      If not provided, reads from OPENROUTER_API_KEY env var
             system_prompt: Base system prompt for the agent
             timeout: Request timeout in seconds (default: 30)
+            tool_registry: ToolRegistry with registered tools (optional)
+            max_iterations: Maximum agent loop iterations (default: 15)
 
         Raises:
             ValueError: If API key is not provided and not in environment
@@ -66,6 +73,8 @@ class SimpleAgent:
         self.model = model or os.getenv("LITELLM_MODEL", "openrouter/anthropic/claude-haiku-4.5")
         self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         self.timeout = timeout
+        self.tool_registry = tool_registry
+        self.max_iterations = max_iterations
 
         if not self.api_key:
             raise ValueError(
@@ -75,19 +84,26 @@ class SimpleAgent:
         # Set default system prompt
         self.system_prompt = system_prompt or """You are a helpful AI assistant.
 You accomplish tasks by thinking through them step by step.
+When you have access to tools, use them to complete tasks more effectively.
 Be concise and clear in your responses."""
 
         # Initialize conversation with system prompt
-        self.conversation: List[Dict[str, str]] = [
+        self.conversation: List[Dict[str, Any]] = [
             {"role": "system", "content": self.system_prompt}
         ]
 
+        # Track iteration count
+        self.iteration = 0
+
     def run(self, task: str) -> Dict[str, Any]:
         """
-        Run agent on a task (single-turn execution).
+        Run agent on a task with tool calling support.
 
-        This method resets the conversation and executes a single task.
-        For multi-turn conversations, use chat() instead.
+        This method uses an agent loop:
+        1. Send task to LLM with available tools
+        2. If LLM returns tool calls, execute them
+        3. Send tool results back to LLM
+        4. Repeat until LLM completes without tool calls or max iterations reached
 
         Args:
             task: String describing what to do
@@ -96,14 +112,15 @@ Be concise and clear in your responses."""
             Dict with:
                 - success: bool indicating if task completed
                 - result: final response from agent
-                - usage: dict with token counts (prompt, completion, total)
+                - iterations: number of loop iterations used
+                - usage: dict with total token counts
 
         Raises:
             ValueError: If task is empty or too long
 
         Example:
-            >>> agent = SimpleAgent()
-            >>> result = agent.run("Explain recursion briefly")
+            >>> agent = SimpleAgent(tool_registry=registry)
+            >>> result = agent.run("Read the file example.txt")
             >>> if result['success']:
             ...     print(result['result'])
         """
@@ -123,96 +140,181 @@ Be concise and clear in your responses."""
             {"role": "user", "content": task}
         ]
 
-        try:
-            # Call LiteLLM
-            response = litellm.completion(
-                model=self.model,
-                messages=self.conversation,
-                api_key=self.api_key,
-                timeout=self.timeout
-            )
+        self.iteration = 0
+        total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
-            # Extract response content
-            content = response.choices[0].message.content
+        # Get tool definitions if registry provided
+        tools = self.tool_registry.get_definitions() if self.tool_registry else None
 
-            # Display response with rich (handles Unicode automatically)
-            console.print("\n[bold green]Response:[/bold green]")
-            console.print(content)
+        # Agent loop: while(tool_calls) pattern
+        while self.iteration < self.max_iterations:
+            self.iteration += 1
+            console.print(f"\n[dim]--- Iteration {self.iteration}/{self.max_iterations} ---[/dim]")
 
-            # Display token usage
-            usage = response.usage
-            usage_table = Table(show_header=False, box=None)
-            usage_table.add_row("[cyan]Prompt tokens:[/cyan]", str(usage.prompt_tokens))
-            usage_table.add_row("[cyan]Completion tokens:[/cyan]", str(usage.completion_tokens))
-            usage_table.add_row("[bold cyan]Total tokens:[/bold cyan]", f"[bold]{usage.total_tokens}[/bold]")
-            console.print("\n", usage_table)
+            try:
+                # Call LiteLLM
+                response = litellm.completion(
+                    model=self.model,
+                    messages=self.conversation,
+                    api_key=self.api_key,
+                    timeout=self.timeout,
+                    tools=tools
+                )
 
-            return {
-                "success": True,
-                "result": content,
-                "usage": {
-                    "prompt_tokens": usage.prompt_tokens,
-                    "completion_tokens": usage.completion_tokens,
-                    "total_tokens": usage.total_tokens
+                # Track token usage
+                usage = response.usage
+                total_usage["prompt_tokens"] += usage.prompt_tokens
+                total_usage["completion_tokens"] += usage.completion_tokens
+                total_usage["total_tokens"] += usage.total_tokens
+
+                # Extract response
+                message = response.choices[0].message
+
+                # Check if there are tool calls
+                tool_calls = getattr(message, 'tool_calls', None)
+
+                if not tool_calls:
+                    # No tool calls - task complete
+                    content = message.content
+
+                    # Display final response
+                    console.print("\n[bold green]Response:[/bold green]")
+                    console.print(content)
+
+                    # Display token usage
+                    self._display_usage(total_usage)
+
+                    console.print(f"\n[green]Task completed in {self.iteration} iteration(s)[/green]")
+
+                    return {
+                        "success": True,
+                        "result": content,
+                        "iterations": self.iteration,
+                        "usage": total_usage
+                    }
+
+                # Tool calls exist - execute them
+                console.print(f"\n[yellow]Tool calls: {len(tool_calls)}[/yellow]")
+
+                # Add assistant message with tool calls to conversation
+                self.conversation.append({
+                    "role": "assistant",
+                    "content": message.content,
+                    "tool_calls": [
+                        {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments
+                            }
+                        }
+                        for tc in tool_calls
+                    ]
+                })
+
+                # Execute each tool call
+                for tool_call in tool_calls:
+                    tool_name = tool_call.function.name
+                    tool_args_str = tool_call.function.arguments
+
+                    # Parse arguments
+                    try:
+                        tool_args = json.loads(tool_args_str) if isinstance(tool_args_str, str) else tool_args_str
+                    except json.JSONDecodeError:
+                        tool_args = {}
+
+                    console.print(f"  [cyan]→[/cyan] {tool_name}({', '.join(f'{k}={v}' for k, v in tool_args.items())})")
+
+                    # Execute tool via registry
+                    if not self.tool_registry:
+                        tool_result = json.dumps({"error": "No tool registry available"})
+                    else:
+                        try:
+                            tool_result = self.tool_registry.execute(tool_name, tool_args)
+                        except Exception as e:
+                            tool_result = json.dumps({"error": str(e)})
+                            console.print(f"    [red]Error: {str(e)}[/red]")
+
+                    # Add tool result to conversation
+                    self.conversation.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": tool_result
+                    })
+
+                # Continue loop - LLM will process tool results
+
+            except litellm.exceptions.AuthenticationError as e:
+                error_msg = "Authentication failed. Check your API key."
+                console.print(f"\n[bold red]Error:[/bold red] {error_msg}", style="red")
+                console.print(f"[dim]Details: {str(e)}[/dim]")
+                return {
+                    "success": False,
+                    "result": error_msg,
+                    "iterations": self.iteration,
+                    "error": str(e)
                 }
-            }
 
-        except litellm.exceptions.AuthenticationError as e:
-            error_msg = "Authentication failed. Check your API key."
-            console.print(f"\n[bold red]Error:[/bold red] {error_msg}", style="red")
-            console.print(f"[dim]Details: {str(e)}[/dim]")
-            return {
-                "success": False,
-                "result": error_msg,
-                "error": str(e)
-            }
+            except litellm.exceptions.RateLimitError as e:
+                error_msg = "Rate limit exceeded. Please wait and try again."
+                console.print(f"\n[bold red]Error:[/bold red] {error_msg}", style="red")
+                console.print(f"[dim]Details: {str(e)}[/dim]")
+                return {
+                    "success": False,
+                    "result": error_msg,
+                    "iterations": self.iteration,
+                    "error": str(e)
+                }
 
-        except litellm.exceptions.RateLimitError as e:
-            error_msg = "Rate limit exceeded. Please wait and try again."
-            console.print(f"\n[bold red]Error:[/bold red] {error_msg}", style="red")
-            console.print(f"[dim]Details: {str(e)}[/dim]")
-            return {
-                "success": False,
-                "result": error_msg,
-                "error": str(e)
-            }
+            except litellm.exceptions.Timeout as e:
+                error_msg = f"Request timed out after {self.timeout} seconds."
+                console.print(f"\n[bold red]Error:[/bold red] {error_msg}", style="red")
+                console.print(f"[dim]Details: {str(e)}[/dim]")
+                return {
+                    "success": False,
+                    "result": error_msg,
+                    "iterations": self.iteration,
+                    "error": str(e)
+                }
 
-        except litellm.exceptions.Timeout as e:
-            error_msg = f"Request timed out after {self.timeout} seconds."
-            console.print(f"\n[bold red]Error:[/bold red] {error_msg}", style="red")
-            console.print(f"[dim]Details: {str(e)}[/dim]")
-            return {
-                "success": False,
-                "result": error_msg,
-                "error": str(e)
-            }
+            except litellm.exceptions.APIError as e:
+                error_msg = "API error occurred."
+                console.print(f"\n[bold red]Error:[/bold red] {error_msg}", style="red")
+                console.print(f"[dim]Details: {str(e)}[/dim]")
+                return {
+                    "success": False,
+                    "result": error_msg,
+                    "iterations": self.iteration,
+                    "error": str(e)
+                }
 
-        except litellm.exceptions.APIError as e:
-            error_msg = "API error occurred."
-            console.print(f"\n[bold red]Error:[/bold red] {error_msg}", style="red")
-            console.print(f"[dim]Details: {str(e)}[/dim]")
-            return {
-                "success": False,
-                "result": error_msg,
-                "error": str(e)
-            }
+            except Exception as e:
+                error_msg = "Unexpected error occurred."
+                console.print(f"\n[bold red]Error:[/bold red] {error_msg}", style="red")
+                console.print_exception(show_locals=False)
+                return {
+                    "success": False,
+                    "result": error_msg,
+                    "iterations": self.iteration,
+                    "error": str(e)
+                }
 
-        except Exception as e:
-            error_msg = "Unexpected error occurred."
-            console.print(f"\n[bold red]Error:[/bold red] {error_msg}", style="red")
-            console.print_exception(show_locals=False)
-            return {
-                "success": False,
-                "result": error_msg,
-                "error": str(e)
-            }
+        # Max iterations reached
+        console.print(f"\n[yellow]Max iterations ({self.max_iterations}) reached[/yellow]")
+        return {
+            "success": False,
+            "result": "Task did not complete within maximum iterations",
+            "iterations": self.iteration,
+            "usage": total_usage
+        }
 
     def chat(self, message: str) -> str:
         """
-        Continue multi-turn conversation.
+        Continue multi-turn conversation (no tool support).
 
         This method maintains conversation history across calls.
-        For single-turn tasks, use run() instead.
+        For single-turn tasks with tools, use run() instead.
 
         Args:
             message: User message
@@ -239,7 +341,7 @@ Be concise and clear in your responses."""
         })
 
         try:
-            # Get response
+            # Get response (no tools in chat mode)
             response = litellm.completion(
                 model=self.model,
                 messages=self.conversation,
@@ -289,6 +391,7 @@ Be concise and clear in your responses."""
         self.conversation = [
             {"role": "system", "content": self.system_prompt}
         ]
+        self.iteration = 0
 
     def _validate_input(self, text: str, field_name: str):
         """
@@ -308,3 +411,11 @@ Be concise and clear in your responses."""
             raise ValueError(
                 f"{field_name} too long ({len(text)} chars). Maximum is 50,000 characters."
             )
+
+    def _display_usage(self, usage: Dict[str, int]):
+        """Display token usage statistics."""
+        usage_table = Table(show_header=False, box=None)
+        usage_table.add_row("[cyan]Prompt tokens:[/cyan]", str(usage["prompt_tokens"]))
+        usage_table.add_row("[cyan]Completion tokens:[/cyan]", str(usage["completion_tokens"]))
+        usage_table.add_row("[bold cyan]Total tokens:[/bold cyan]", f"[bold]{usage['total_tokens']}[/bold]")
+        console.print("\n", usage_table)
