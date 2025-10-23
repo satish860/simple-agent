@@ -1,7 +1,7 @@
 [project]
 name = "simple-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "LLM-Agnostic Progressive Disclosure Architecture for Intelligent Agents"
 readme = "README.md"
 authors = [
     { name = "satish", email = "satish860@gmail.com" }
