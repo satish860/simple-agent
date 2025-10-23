@@ -7,7 +7,10 @@ authors = [
     { name = "satish", email = "satish860@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "litellm>=1.56.3",
+    "python-dotenv>=1.0.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.8.8,<0.9.0"]
