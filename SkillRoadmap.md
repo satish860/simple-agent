@@ -79,27 +79,33 @@ For each component:
 
 ---
 
-## Phase 3: SkillLoader (Medium Level - Uses Validator + Paths)
+## Phase 3: SkillLoader (Medium Level - Uses Validator + Paths) ✅
 
-**Status**: PENDING
+**Status**: COMPLETED
 
-### Tests to Write
-- [ ] Test discover_skills from single directory
-- [ ] Test discover_skills from multiple directories
-- [ ] Test loading SKILL.md files
-- [ ] Test handling invalid skills gracefully
-- [ ] Test recursion into subdirectories
-- [ ] Test empty directories
-- [ ] Test duplicate skill names across paths
+### Tests Written ✅
+- [x] Test discover_skills from single directory
+- [x] Test discover_skills from multiple directories
+- [x] Test loading SKILL.md files
+- [x] Test handling invalid skills gracefully
+- [x] Test recursion into subdirectories
+- [x] Test empty directories
+- [x] Test duplicate skill names across paths
+- [x] Test integration with SkillValidator and SkillPathResolver
+- [x] Test edge cases (root-level skills, mixed content, etc.)
+- [x] Test metadata population
 
-### Implementation
-- [ ] SkillLoader class
-- [ ] Directory scanning and SKILL.md discovery
-- [ ] Integration with SkillValidator
-- [ ] Error handling for invalid skills
+### Implementation ✅
+- [x] SkillLoader class with dependency injection
+- [x] Directory scanning and SKILL.md discovery (recursive)
+- [x] Integration with SkillValidator
+- [x] Error handling for invalid skills (graceful logging)
+- [x] Duplicate detection and handling (first wins)
+- [x] Comprehensive logging for debugging
 
 **Files**:
-- `tests/test_loader.py`
+- `tests/test_loader.py` (26 tests, all passing)
+- `tests/conftest.py` (added loader fixtures)
 - `src/simple_agent/skills/loader.py`
 
 ---
@@ -268,9 +274,9 @@ For each component:
 |-------|-----------|--------|-------|----------------|
 | 0 | Testing Setup | ✅ DONE | N/A | ✅ Complete |
 | 1 | SkillValidator | ✅ DONE | 12/12 passing | ✅ Complete |
-| 2 | SkillPathResolver | ✅ DONE | 24/24 passing | ✅ Complete |
-| 3 | SkillLoader | ⏳ NEXT | 0 tests | Not started |
-| 4 | SkillRegistry | 📅 PENDING | 0 tests | Not started |
+| 2 | SkillPathResolver | ✅ DONE | 28/28 passing | ✅ Complete |
+| 3 | SkillLoader | ✅ DONE | 26/26 passing | ✅ Complete |
+| 4 | SkillRegistry | ⏳ NEXT | 0 tests | Not started |
 | 5 | PromptBuilder | 📅 PENDING | 0 tests | Not started |
 | 6 | ContentLoader | 📅 PENDING | 0 tests | Not started |
 | 7 | Tool Integration | 📅 PENDING | 0 tests | Not started |
@@ -281,11 +287,11 @@ For each component:
 
 ## Next Steps
 
-**Current Focus**: Phase 3 - SkillLoader
+**Current Focus**: Phase 4 - SkillRegistry
 
-1. Write tests for skill loading in `tests/test_loader.py`
+1. Write tests for skill registry in `tests/test_registry.py`
 2. Run tests (expect failures - RED)
-3. Implement SkillLoader in `src/simple_agent/skills/loader.py`
+3. Implement SkillRegistry in `src/simple_agent/skills/registry.py`
 4. Run tests until passing (GREEN)
 5. Refactor if needed
-6. Move to Phase 4
+6. Move to Phase 5

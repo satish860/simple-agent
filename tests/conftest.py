@@ -104,3 +104,144 @@ def mock_env_vars(monkeypatch):
         for key, value in env_dict.items():
             monkeypatch.setenv(key, value)
     return _mock_env
+
+
+# SkillLoader testing fixtures
+@pytest.fixture
+def temp_skills_tree(tmp_path):
+    """Create a multi-level directory structure with nested skills."""
+    root = tmp_path / "skills_tree"
+    root.mkdir()
+
+    # Top level skill
+    (root / "top-skill").mkdir()
+    (root / "top-skill" / "SKILL.md").write_text(
+        "---\nname: top-skill\ndescription: Top level skill\n---\n",
+        encoding='utf-8'
+    )
+
+    # Nested skill (one level deep)
+    (root / "category" / "nested-skill").mkdir(parents=True)
+    (root / "category" / "nested-skill" / "SKILL.md").write_text(
+        "---\nname: nested-skill\ndescription: Nested skill\n---\n",
+        encoding='utf-8'
+    )
+
+    # Deeply nested skill (two levels deep)
+    (root / "category" / "subcategory" / "deep-skill").mkdir(parents=True)
+    (root / "category" / "subcategory" / "deep-skill" / "SKILL.md").write_text(
+        "---\nname: deep-skill\ndescription: Deeply nested skill\n---\n",
+        encoding='utf-8'
+    )
+
+    return root
+
+
+@pytest.fixture
+def temp_multiple_skill_dirs(tmp_path):
+    """Create multiple separate skill directories."""
+    dir1 = tmp_path / "dir1"
+    dir2 = tmp_path / "dir2"
+    dir1.mkdir()
+    dir2.mkdir()
+
+    # Skills in dir1
+    (dir1 / "skill-a").mkdir()
+    (dir1 / "skill-a" / "SKILL.md").write_text(
+        "---\nname: skill-a\ndescription: Skill A\n---\n",
+        encoding='utf-8'
+    )
+
+    (dir1 / "skill-b").mkdir()
+    (dir1 / "skill-b" / "SKILL.md").write_text(
+        "---\nname: skill-b\ndescription: Skill B\n---\n",
+        encoding='utf-8'
+    )
+
+    # Skills in dir2
+    (dir2 / "skill-c").mkdir()
+    (dir2 / "skill-c" / "SKILL.md").write_text(
+        "---\nname: skill-c\ndescription: Skill C\n---\n",
+        encoding='utf-8'
+    )
+
+    return [dir1, dir2]
+
+
+@pytest.fixture
+def temp_mixed_content_dir(tmp_path):
+    """Create a directory with skills and non-skill files."""
+    root = tmp_path / "mixed"
+    root.mkdir()
+
+    # Valid skill
+    (root / "valid-skill").mkdir()
+    (root / "valid-skill" / "SKILL.md").write_text(
+        "---\nname: valid-skill\ndescription: Valid skill\n---\n",
+        encoding='utf-8'
+    )
+
+    # Regular markdown file (not a skill)
+    (root / "README.md").write_text("# Not a skill", encoding='utf-8')
+
+    # Regular directory without SKILL.md
+    (root / "not-a-skill").mkdir()
+    (root / "not-a-skill" / "some-file.txt").write_text("data", encoding='utf-8')
+
+    # Python files
+    (root / "script.py").write_text("print('hello')", encoding='utf-8')
+
+    # Invalid skill (invalid YAML)
+    (root / "invalid-skill").mkdir()
+    (root / "invalid-skill" / "SKILL.md").write_text(
+        "---\nname: [invalid yaml\n---\n",
+        encoding='utf-8'
+    )
+
+    # Skill missing required fields
+    (root / "incomplete-skill").mkdir()
+    (root / "incomplete-skill" / "SKILL.md").write_text(
+        "---\nname: incomplete-skill\n---\n",  # missing description
+        encoding='utf-8'
+    )
+
+    return root
+
+
+@pytest.fixture
+def temp_duplicate_skills_dirs(tmp_path):
+    """Create multiple directories with duplicate skill names."""
+    dir1 = tmp_path / "priority1"
+    dir2 = tmp_path / "priority2"
+    dir1.mkdir()
+    dir2.mkdir()
+
+    # Same skill name in both directories (different descriptions)
+    (dir1 / "duplicate-skill").mkdir()
+    (dir1 / "duplicate-skill" / "SKILL.md").write_text(
+        "---\nname: duplicate-skill\ndescription: First occurrence (priority 1)\nversion: 1.0.0\n---\n",
+        encoding='utf-8'
+    )
+
+    (dir2 / "duplicate-skill").mkdir()
+    (dir2 / "duplicate-skill" / "SKILL.md").write_text(
+        "---\nname: duplicate-skill\ndescription: Second occurrence (priority 2)\nversion: 2.0.0\n---\n",
+        encoding='utf-8'
+    )
+
+    # Unique skill in dir2
+    (dir2 / "unique-skill").mkdir()
+    (dir2 / "unique-skill" / "SKILL.md").write_text(
+        "---\nname: unique-skill\ndescription: Unique to dir2\n---\n",
+        encoding='utf-8'
+    )
+
+    return [dir1, dir2]
+
+
+@pytest.fixture
+def temp_empty_skills_dir(tmp_path):
+    """Create an empty skills directory."""
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    return empty_dir

@@ -9,10 +9,12 @@ Implements three-tier skill loading:
 
 from .validation import SkillValidator, SkillMetadata, SkillValidationError
 from .paths import SkillPathResolver
+from .loader import SkillLoader
 
 __all__ = [
     "SkillValidator",
     "SkillMetadata",
     "SkillValidationError",
     "SkillPathResolver",
+    "SkillLoader",
 ]
