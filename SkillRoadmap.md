@@ -48,27 +48,33 @@ For each component:
 
 ---
 
-## Phase 2: SkillPathResolver (Low Level - Minimal Dependencies)
+## Phase 2: SkillPathResolver (Low Level - Minimal Dependencies) ✅
 
-**Status**: PENDING
+**Status**: COMPLETED
 
-### Tests to Write
-- [ ] Test explicit path resolution
-- [ ] Test project-local path (./skills/)
-- [ ] Test user global path (~/.simple-agent/skills/)
-- [ ] Test multiple paths with priority order
-- [ ] Test environment variable support (SIMPLE_AGENT_SKILLS_DIR)
-- [ ] Test path existence checks
-- [ ] Test path validation
+### Tests Written ✅
+- [x] Test explicit path resolution
+- [x] Test project-local path (./skills/)
+- [x] Test user global path (~/.simple-agent/skills/)
+- [x] Test multiple paths with priority order
+- [x] Test environment variable support (SIMPLE_AGENT_SKILLS_DIR)
+- [x] Test path existence checks
+- [x] Test path validation
+- [x] Test path expansion (~ and environment variables)
+- [x] Test cross-platform compatibility (Windows/Unix)
+- [x] Test path deduplication
+- [x] Test edge cases
 
-### Implementation
-- [ ] SkillPathResolver class
-- [ ] Multi-path resolution with priority
-- [ ] Environment variable support
-- [ ] Path validation and existence checks
+### Implementation ✅
+- [x] SkillPathResolver class
+- [x] Multi-path resolution with priority
+- [x] Environment variable support
+- [x] Path validation and existence checks
+- [x] Path expansion and cross-platform support
 
 **Files**:
-- `tests/test_paths.py`
+- `tests/test_paths.py` (24 tests, all passing)
+- `tests/conftest.py` (added path fixtures)
 - `src/simple_agent/skills/paths.py`
 
 ---
@@ -262,8 +268,8 @@ For each component:
 |-------|-----------|--------|-------|----------------|
 | 0 | Testing Setup | ✅ DONE | N/A | ✅ Complete |
 | 1 | SkillValidator | ✅ DONE | 12/12 passing | ✅ Complete |
-| 2 | SkillPathResolver | ⏳ NEXT | 0 tests | Not started |
-| 3 | SkillLoader | 📅 PENDING | 0 tests | Not started |
+| 2 | SkillPathResolver | ✅ DONE | 24/24 passing | ✅ Complete |
+| 3 | SkillLoader | ⏳ NEXT | 0 tests | Not started |
 | 4 | SkillRegistry | 📅 PENDING | 0 tests | Not started |
 | 5 | PromptBuilder | 📅 PENDING | 0 tests | Not started |
 | 6 | ContentLoader | 📅 PENDING | 0 tests | Not started |
@@ -275,11 +281,11 @@ For each component:
 
 ## Next Steps
 
-**Current Focus**: Phase 2 - SkillPathResolver
+**Current Focus**: Phase 3 - SkillLoader
 
-1. Write tests for path resolution in `tests/test_paths.py`
+1. Write tests for skill loading in `tests/test_loader.py`
 2. Run tests (expect failures - RED)
-3. Implement SkillPathResolver in `src/simple_agent/skills/paths.py`
+3. Implement SkillLoader in `src/simple_agent/skills/loader.py`
 4. Run tests until passing (GREEN)
 5. Refactor if needed
-6. Move to Phase 3
+6. Move to Phase 4
