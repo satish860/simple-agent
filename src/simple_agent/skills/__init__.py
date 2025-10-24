@@ -11,6 +11,7 @@ from .validation import SkillValidator, SkillMetadata, SkillValidationError
 from .paths import SkillPathResolver
 from .loader import SkillLoader
 from .registry import SkillRegistry
+from .prompt_builder import PromptBuilder
 
 __all__ = [
     "SkillValidator",
@@ -19,4 +20,5 @@ __all__ = [
     "SkillPathResolver",
     "SkillLoader",
     "SkillRegistry",
+    "PromptBuilder",
 ]

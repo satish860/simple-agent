@@ -12,6 +12,7 @@ from .file_tools import (
     ListFilesTool,
     SearchFilesTool
 )
+from .skill_tools import LoadSkillTool
 
 __all__ = [
     "BaseTool",
@@ -20,4 +21,5 @@ __all__ = [
     "WriteFileTool",
     "ListFilesTool",
     "SearchFilesTool",
+    "LoadSkillTool",
 ]

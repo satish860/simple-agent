@@ -8,12 +8,20 @@ Gather -> Act -> Verify -> Repeat
 import os
 import json
 from typing import Dict, Any, List, Optional
+from pathlib import Path
 from dotenv import load_dotenv
 import litellm
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from .tools import ToolRegistry
+from .tools import ToolRegistry, LoadSkillTool
+from .skills import (
+    SkillPathResolver,
+    SkillValidator,
+    SkillLoader,
+    SkillRegistry,
+    PromptBuilder
+)
 
 # Load environment variables (automatically searches parent directories)
 load_dotenv()
@@ -46,7 +54,9 @@ class SimpleAgent:
         system_prompt: Optional[str] = None,
         timeout: int = 30,
         tool_registry: Optional[ToolRegistry] = None,
-        max_iterations: int = 15
+        max_iterations: int = 15,
+        skills_dir: Optional[str] = None,
+        enable_skills: bool = True
     ):
         """
         Initialize SimpleAgent.
@@ -60,6 +70,8 @@ class SimpleAgent:
             timeout: Request timeout in seconds (default: 30)
             tool_registry: ToolRegistry with registered tools (optional)
             max_iterations: Maximum agent loop iterations (default: 15)
+            skills_dir: Path to skills directory (optional, defaults to ./skills/ and ~/.simple-agent/skills/)
+            enable_skills: Whether to enable skills system (default: True)
 
         Raises:
             ValueError: If API key is not provided and not in environment
@@ -68,24 +80,54 @@ class SimpleAgent:
             >>> agent = SimpleAgent()
             >>> result = agent.run("What is 2+2?")
             >>> print(result['result'])
+
+        Example with skills:
+            >>> agent = SimpleAgent(skills_dir="./my-skills")
+            >>> result = agent.run("Use the code-review skill to review my code")
         """
         # Get configuration from params or environment
         self.model = model or os.getenv("LITELLM_MODEL", "openrouter/anthropic/claude-haiku-4.5")
         self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         self.timeout = timeout
-        self.tool_registry = tool_registry
         self.max_iterations = max_iterations
+        self.enable_skills = enable_skills
 
         if not self.api_key:
             raise ValueError(
                 "API key is required. Provide via api_key parameter or OPENROUTER_API_KEY env var"
             )
 
+        # Initialize skills system if enabled
+        self.skill_registry = None
+        if self.enable_skills:
+            self.skill_registry = self._initialize_skills(skills_dir)
+
+        # Initialize or augment tool registry
+        if tool_registry is None:
+            self.tool_registry = ToolRegistry()
+        else:
+            self.tool_registry = tool_registry
+
+        # Register skills tool if skills are enabled
+        if self.enable_skills and self.skill_registry:
+            load_skill_tool = LoadSkillTool(registry=self.skill_registry)
+            self.tool_registry.register(load_skill_tool)
+
         # Set default system prompt
-        self.system_prompt = system_prompt or """You are a helpful AI assistant.
+        base_prompt = system_prompt or """You are a helpful AI assistant.
 You accomplish tasks by thinking through them step by step.
 When you have access to tools, use them to complete tasks more effectively.
 Be concise and clear in your responses."""
+
+        # Inject Tier 1 skills metadata if available
+        if self.enable_skills and self.skill_registry:
+            tier1_prompt = self._build_tier1_prompt()
+            if tier1_prompt:
+                self.system_prompt = f"{base_prompt}\n\n{tier1_prompt}"
+            else:
+                self.system_prompt = base_prompt
+        else:
+            self.system_prompt = base_prompt
 
         # Initialize conversation with system prompt
         self.conversation: List[Dict[str, Any]] = [
@@ -94,6 +136,54 @@ Be concise and clear in your responses."""
 
         # Track iteration count
         self.iteration = 0
+
+    def _initialize_skills(self, skills_dir: Optional[str] = None) -> Optional[SkillRegistry]:
+        """
+        Initialize the skills system.
+
+        Args:
+            skills_dir: Optional explicit skills directory path
+
+        Returns:
+            SkillRegistry instance or None if initialization fails
+        """
+        try:
+            # Setup skill path resolver
+            explicit_paths = [skills_dir] if skills_dir else None
+            path_resolver = SkillPathResolver(explicit_paths=explicit_paths)
+
+            # Setup validator and loader
+            validator = SkillValidator()
+            loader = SkillLoader(path_resolver=path_resolver, validator=validator)
+
+            # Create and return registry
+            registry = SkillRegistry(skill_loader=loader)
+
+            if registry.count_total() > 0:
+                console.print(f"[cyan]Loaded {registry.count_total()} skill(s)[/cyan]")
+
+            return registry
+
+        except Exception as e:
+            console.print(f"[yellow]Warning: Failed to initialize skills system: {e}[/yellow]")
+            return None
+
+    def _build_tier1_prompt(self) -> str:
+        """
+        Build Tier 1 system prompt with skill metadata.
+
+        Returns:
+            Tier 1 prompt string or empty string if no skills
+        """
+        if not self.skill_registry:
+            return ""
+
+        try:
+            prompt_builder = PromptBuilder(registry=self.skill_registry)
+            return prompt_builder.build_tier1_prompt()
+        except Exception as e:
+            console.print(f"[yellow]Warning: Failed to build skills prompt: {e}[/yellow]")
+            return ""
 
     def run(self, task: str) -> Dict[str, Any]:
         """

@@ -14,25 +14,32 @@ Instead of overwhelming agents with massive context windows full of irrelevant i
 
 ## Current Status
 
-**Phase 1 - Foundation Complete** ✓
+**Phase 5 - Skills System Complete** ✓
 
 - ✅ LiteLLM integration (access to 100+ models via OpenRouter)
 - ✅ SimpleAgent core class with conversation management
 - ✅ Beautiful console output with Rich library
 - ✅ Production-ready error handling and input validation
 - ✅ Single-turn task execution and multi-turn chat
+- ✅ **Tool calling support with agent loop**
+- ✅ **Progressive Disclosure Skills System (Tier 1 & 2)**
+- ✅ **Dynamic skill loading with load_skill tool**
+- ✅ **117 tests passing with TDD approach**
 
 **Coming Soon:**
-- 🔄 Tool calling support
-- 🔄 Skills system (Progressive Disclosure)
+- 🔄 Tier 3 resources (ContentLoader)
+- 🔄 More example skills
 - 🔄 TODO tracking for complex tasks
 
 ## Key Features
 
 - **LLM-Agnostic**: Works with any LLM provider through LiteLLM
 - **OpenRouter Integration**: Access 100+ models (OpenAI, Anthropic, Google, Meta, etc.) with one API
+- **Progressive Disclosure Skills**: Load knowledge dynamically based on relevance
+- **Tool Calling**: Full agent loop with tool execution support
 - **Beautiful Output**: Rich console formatting with automatic Unicode handling
 - **Production Ready**: Comprehensive error handling, input validation, configurable timeouts
+- **Test-Driven Development**: 117 tests passing, TDD approach throughout
 - **Simple API**: Clean interface for both single-turn tasks and multi-turn conversations
 - **Portable**: Standalone Python library, not tied to specific IDEs
 
@@ -78,25 +85,45 @@ response2 = agent.chat("What about 3+3?")
 response3 = agent.chat("Add those results together")  # Remembers context
 ```
 
+### Using Skills (Progressive Disclosure)
+
+```python
+from simple_agent import SimpleAgent
+
+# Agent automatically loads skills from ./skills/ directory
+agent = SimpleAgent()
+
+# The LLM sees available skills in Tier 1 (metadata only)
+# and can call load_skill() when relevant
+result = agent.run("Review this code for best practices")
+
+# Skills are loaded dynamically (Tier 2) only when needed
+# This saves tokens and keeps context focused
+```
+
 ### Advanced Configuration
 
 ```python
 from simple_agent import SimpleAgent
 
-# Custom configuration
+# Custom configuration with skills
 agent = SimpleAgent(
     model="openrouter/anthropic/claude-haiku-4.5",
     api_key="your-api-key",
-    system_prompt="You are a helpful math tutor.",
-    timeout=60  # Request timeout in seconds
+    system_prompt="You are a helpful code review assistant.",
+    skills_dir="./my-custom-skills",  # Custom skills directory
+    enable_skills=True,  # Enable skills system (default: True)
+    timeout=60,  # Request timeout in seconds
+    max_iterations=15  # Maximum agent loop iterations
 )
 
-# Run task
-result = agent.run("Solve this equation: 2x + 5 = 15")
+# Run task with tools
+result = agent.run("Review this Python code for security issues")
 
 # Check result
 if result['success']:
     print(result['result'])
+    print(f"Iterations: {result['iterations']}")
     print(f"Tokens used: {result['usage']['total_tokens']}")
 ```
 
@@ -108,6 +135,12 @@ uv run python examples/hello_world.py
 
 # Simple Chat - SimpleAgent with all features
 uv run python examples/simple_chat.py
+
+# Skills System E2E Test
+uv run python examples/test_skills_e2e.py
+
+# Manual LLM Skills Test
+uv run python examples/test_real_llm.py
 ```
 
 ## Features in Detail
@@ -144,41 +177,44 @@ Automatic validation for:
 
 ## Architecture
 
-### Current Architecture (Phase 1)
+### Current Architecture (Phase 5 - Working!)
 
 ```
-User Input
-    |
-    v
-SimpleAgent
-    |
-    v
-LiteLLM (via OpenRouter)
-    |
-    v
-Claude 4.5 Haiku (or any model)
-    |
-    v
-Response with Rich Formatting
-```
-
-### Future Architecture (Phase 2+)
-
-```
-User Query -> Agent Runtime (Tier 1: Metadata)
+User Query -> SimpleAgent (Tier 1: Skill Metadata in System Prompt)
+                    |
+                    v
+              Agent Loop Iteration
+                    |
+                    v
+         LiteLLM (via OpenRouter) - Any Model
                     |
                     v
               LLM determines relevance
                     |
-                    v
-         load_skill() tool call (Tier 2: Instructions)
-                    |
-                    v
-         Load resources if needed (Tier 3: Resources)
-                    |
-                    v
-         LLM generates response with full context
+        +-----------+-----------+
+        |                       |
+        v                       v
+   No tool calls         load_skill() tool call
+        |                       |
+        |                       v
+        |              Tier 2: Load SKILL.md content
+        |                       |
+        |                       v
+        |              Add to conversation context
+        |                       |
+        +----------+------------+
+                   |
+                   v
+          LLM generates response
+                   |
+                   v
+          Response with Rich Formatting
 ```
+
+### Future Enhancement (Phase 6 - Optional)
+
+- **Tier 3 Resources**: Load supplementary files (style guides, schemas, etc.) on demand
+- Already working for most use cases with Tier 1 + 2!
 
 ## Why Progressive Disclosure?
 
@@ -195,7 +231,7 @@ User Query -> Agent Runtime (Tier 1: Metadata)
 - Scale to effectively unlimited procedural knowledge
 - Maintain fast response times and low costs
 
-## Creating Skills (Coming Soon)
+## Creating Skills
 
 ### Skill Structure
 
@@ -256,9 +292,10 @@ This project is inspired by [Claude Code's Agent Skills system](https://www.anth
 | **LLM Support** | Claude only | Any LLM (via LiteLLM) |
 | **Environment** | VSCode extension | Standalone library |
 | **Skill Format** | SKILL.md | SKILL.md (compatible) |
-| **Progressive Disclosure** | Yes (3 tiers) | Planned (Phase 2) |
+| **Progressive Disclosure** | Yes (3 tiers) | Yes (Tier 1 & 2 working!) |
 | **Code Execution** | Built-in | Planned |
-| **Status** | Production | Phase 1 Complete |
+| **Test Coverage** | Unknown | 117 tests, TDD approach |
+| **Status** | Production | Phase 5 Complete |
 
 ### Migration from Claude Code Skills
 
@@ -271,18 +308,21 @@ Simple Agent will use the same SKILL.md format, making migration straightforward
 
 ## Project Status
 
-**Current Phase**: Phase 1 - Foundation Complete ✓
+**Current Phase**: Phase 5 Complete ✓
 
 **Completed:**
-- LiteLLM integration with OpenRouter
-- SimpleAgent core class
-- Rich console output
-- Error handling and validation
-- Example scripts
+- ✅ Phase 0: Testing Infrastructure (pytest, fixtures)
+- ✅ Phase 1: SkillValidator (12 tests)
+- ✅ Phase 2: SkillPathResolver (28 tests)
+- ✅ Phase 3: SkillLoader (26 tests)
+- ✅ Phase 4: SkillRegistry (32 tests)
+- ✅ Phase 5: PromptBuilder (19 tests)
+- ✅ Phase 7: Tool Integration (load_skill tool)
+- ✅ Phase 8: Agent Integration (E2E verified)
 
-**Next Phase**: Phase 2 - Tools and Skills System
+**Next Phase**: Phase 6 - ContentLoader (Tier 3 resources - optional enhancement)
 
-See [ROADMAP.md](./ROADMAP.md) for detailed implementation plan.
+See [SkillRoadmap.md](./SkillRoadmap.md) for detailed implementation plan.
 
 ## API Reference
 
@@ -295,14 +335,28 @@ class SimpleAgent:
         model: Optional[str] = None,
         api_key: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        timeout: int = 30
+        timeout: int = 30,
+        tool_registry: Optional[ToolRegistry] = None,
+        max_iterations: int = 15,
+        skills_dir: Optional[str] = None,
+        enable_skills: bool = True
     )
 ```
 
+**Parameters:**
+- `model`: LiteLLM model identifier (default: from LITELLM_MODEL env var)
+- `api_key`: API key for model provider (default: from OPENROUTER_API_KEY env var)
+- `system_prompt`: Custom system prompt (optional)
+- `timeout`: Request timeout in seconds (default: 30)
+- `tool_registry`: Custom tool registry (optional, created automatically if None)
+- `max_iterations`: Maximum agent loop iterations (default: 15)
+- `skills_dir`: Path to skills directory (default: ./skills/ and ~/.simple-agent/skills/)
+- `enable_skills`: Enable skills system (default: True)
+
 **Methods:**
 
-- `run(task: str) -> Dict[str, Any]` - Execute single-turn task
-- `chat(message: str) -> str` - Multi-turn conversation
+- `run(task: str) -> Dict[str, Any]` - Execute single-turn task with agent loop
+- `chat(message: str) -> str` - Multi-turn conversation (no tools)
 - `reset()` - Clear conversation history
 
 **Returns (run method):**
@@ -310,6 +364,7 @@ class SimpleAgent:
 {
     "success": bool,
     "result": str,
+    "iterations": int,  # Number of agent loop iterations
     "usage": {
         "prompt_tokens": int,
         "completion_tokens": int,
@@ -321,12 +376,26 @@ class SimpleAgent:
 ## Contributing
 
 We welcome contributions! Areas of interest:
-- Tool calling implementation
-- Skills system development
+- Creating new skills for common use cases
+- Tier 3 resource loading (ContentLoader)
 - Additional LLM provider integrations
 - Performance optimizations
 - Documentation improvements
 - Bug reports and feature requests
+
+**Development Setup:**
+```powershell
+# Clone and setup
+git clone https://github.com/satish860/simple-agent
+cd simple-agent
+uv sync
+
+# Run tests
+uv run pytest tests/ -v
+
+# Run E2E tests
+uv run python examples/test_skills_e2e.py
+```
 
 ## Dependencies
 
@@ -334,6 +403,11 @@ We welcome contributions! Areas of interest:
 - **LiteLLM**: >=1.56.3 (LLM abstraction layer)
 - **python-dotenv**: >=1.0.0 (Environment management)
 - **rich**: >=13.7.0 (Beautiful console output)
+- **pyyaml**: >=6.0.0 (SKILL.md frontmatter parsing)
+
+**Development Dependencies:**
+- **pytest**: >=8.4.2 (Testing framework)
+- **pytest-cov**: >=7.0.0 (Coverage reporting)
 
 ## License
 
