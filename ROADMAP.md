@@ -1,5 +1,13 @@
 # Progressive Disclosure Architecture - Project Roadmap
 
+## Project Status: ~30% Complete
+
+**Latest Update**: 2025-09-24
+- ✅ Phase 1: Foundation & Core Architecture - COMPLETED
+- ✅ Phase 2A: Tool Calling Infrastructure - COMPLETED (Bonus Phase)
+- ⏳ Phase 2: Progressive Disclosure Engine (Skills System) - NOT STARTED
+- ⚠️ Phase 6: Security & Robustness - CRITICAL, NOT STARTED
+
 ## Project Overview
 
 Build an LLM-agnostic Python SDK implementing Progressive Disclosure Architecture for agent skills. This system enables agents to load information progressively - starting with metadata, then detailed instructions, and finally supplementary resources - optimizing context window usage while maintaining full capability access.
@@ -20,64 +28,108 @@ Build an LLM-agnostic Python SDK implementing Progressive Disclosure Architectur
 
 ## Phase 1: Foundation & Core Architecture
 **Timeline**: Weeks 1-2
-**Status**: Not Started
+**Status**: ✅ COMPLETED
 
 ### 1.1 Project Structure Setup
-- [ ] Update pyproject.toml with core dependencies
-  - openai (for OpenRouter compatibility)
-  - pydantic
-  - pyyaml
+- [x] Update pyproject.toml with core dependencies
+  - litellm (for multi-provider LLM support via OpenRouter)
   - rich (for CLI output)
   - python-dotenv
-- [ ] Create package structure:
+- [x] Create package structure:
   ```
   src/simple_agent/
   ├── __init__.py
-  ├── llm/              # LLM abstraction layer
-  ├── skills/           # Skill system
-  ├── engine/           # Progressive disclosure engine
-  ├── runtime/          # Agent runtime
-  └── utils/            # Utilities
+  ├── agent.py          # Agent runtime with loop
+  ├── tools/            # Tool system
+  │   ├── base.py       # BaseTool abstract class
+  │   ├── registry.py   # ToolRegistry
+  │   └── file_tools.py # File operation tools
+  └── examples/         # Example scripts
   ```
-- [ ] Set up development tools (pytest, black, mypy, ruff)
+- [x] Set up development environment with uv
 
 ### 1.2 LLM Abstraction Layer
-- [ ] Create BaseLLM abstract class
-  - Standard message format
-  - Tool/function calling abstraction
-  - Streaming support interface
-- [ ] Implement OpenRouterLLM class
-  - API integration with OpenAI-compatible endpoint
-  - Message formatting for different models
-  - Function calling translation
-  - Streaming response handling
-- [ ] Create LLMConfig for provider settings
-- [ ] Add support for model switching
-- [ ] Implement error handling and retry logic
+**Status**: SIMPLIFIED - Using LiteLLM directly instead of custom abstraction
+- [x] Integrated LiteLLM for multi-provider support
+  - Direct OpenRouter integration
+  - Built-in message formatting
+  - Native tool/function calling support
+  - Comprehensive error handling (Auth, RateLimit, Timeout, APIError)
+- [x] Model configuration via environment variables
+- [x] Timeout and retry logic
+
+**Note**: Decided to use LiteLLM directly rather than building a custom BaseLLM abstraction layer. LiteLLM already provides:
+- 100+ model support via unified interface
+- OpenAI-compatible API format
+- Built-in error handling and retries
+- Streaming support
+This simplifies the architecture while maintaining LLM-agnostic design.
 
 ### 1.3 Skill Format Specification
-- [ ] Define SKILL.md structure:
-  ```markdown
-  ---
-  name: skill_name
-  description: Brief description for metadata
-  version: 1.0.0
-  author: optional
-  resources:
-    - reference.md
-    - examples.md
-  ---
-
-  # Full Skill Instructions
-  Detailed instructions loaded in Tier 2...
-  ```
+**Status**: DEFERRED - To be implemented in Phase 2
+- [ ] Define SKILL.md structure
 - [ ] Document required vs optional fields
 - [ ] Create skill validation schema
 - [ ] Write skill creation best practices guide
 
 ---
 
-## Phase 2: Progressive Disclosure Engine
+## Phase 2A: Tool Calling Infrastructure (BONUS PHASE - COMPLETED)
+**Timeline**: Week 2
+**Status**: ✅ COMPLETED
+
+This phase was completed ahead of schedule, implementing the tool system inspired by Claude Code's architecture.
+
+### 2A.1 Tool System Architecture
+- [x] Created `BaseTool` abstract class (src/simple_agent/tools/base.py)
+  - Abstract properties: name, description, parameters
+  - Optional properties: requires_approval, system_reminder
+  - execute() method for tool logic
+  - to_openai_tool() for LiteLLM integration
+  - format_result() for system reminders
+- [x] Implemented `ToolRegistry` (src/simple_agent/tools/registry.py)
+  - Tool registration and management
+  - Convert tools to LiteLLM format
+  - Execute tools by name with validation
+  - Error handling for missing tools and invalid arguments
+
+### 2A.2 File Operation Tools
+- [x] ReadFileTool - Read file contents with UTF-8 encoding
+- [x] WriteFileTool - Write/overwrite files with directory creation
+- [x] ListFilesTool - List directory contents with glob pattern support
+- [x] SearchFilesTool - Search text in files with case-sensitivity option
+
+### 2A.3 Agent Runtime with Tool Calling
+- [x] Implemented `SimpleAgent` with agent loop (src/simple_agent/agent.py)
+  - Gather → Act → Verify → Repeat pattern
+  - Tool calling support via LiteLLM
+  - Conversation state management
+  - Iteration limits (max 15 by default)
+  - Beautiful console output with Rich
+  - Token usage tracking
+- [x] Comprehensive error handling
+  - Authentication errors
+  - Rate limiting
+  - Timeouts
+  - API errors
+  - Tool execution errors
+- [x] Input validation (length limits, empty checks)
+
+### 2A.4 Examples and Documentation
+- [x] hello_world.py - Basic LiteLLM integration
+- [x] simple_chat.py - Multi-turn conversation
+- [x] tool_demo.py - Comprehensive tool calling examples
+- [x] test_tools_simple.py - Basic tool testing
+
+**Architecture Notes**:
+- Tool system uses JSON Schema for parameter validation
+- System reminders attached to tool results for behavioral reinforcement
+- Registry pattern allows dynamic tool registration
+- All tools return formatted strings for LLM consumption
+
+---
+
+## Phase 2: Progressive Disclosure Engine (Skills System)
 **Timeline**: Weeks 3-4
 **Status**: Not Started
 
