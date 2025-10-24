@@ -110,27 +110,34 @@ For each component:
 
 ---
 
-## Phase 4: SkillRegistry (Medium Level - Uses Loader)
+## Phase 4: SkillRegistry (Medium Level - Uses Loader) ✅
 
-**Status**: PENDING
+**Status**: COMPLETED
 
-### Tests to Write
-- [ ] Test skill registration and indexing
-- [ ] Test duplicate skill handling (priority order)
-- [ ] Test skill lookup by name
-- [ ] Test listing all skills
-- [ ] Test tracking loaded skills (Tier 2/3)
-- [ ] Test is_loaded() checking
-- [ ] Test get_skill() retrieval
+### Tests Written ✅
+- [x] Test skill registration and indexing
+- [x] Test duplicate skill handling (priority order)
+- [x] Test skill lookup by name
+- [x] Test listing all skills
+- [x] Test tracking loaded skills (Tier 2/3)
+- [x] Test is_loaded() checking
+- [x] Test get_skill() retrieval
+- [x] Test query operations (count_total, count_loaded)
+- [x] Test integration with SkillLoader
+- [x] Test edge cases (empty registry, large scale, special characters)
+- [x] Test end-to-end workflow (paths → loader → registry)
 
-### Implementation
-- [ ] SkillRegistry class
-- [ ] Skill indexing by name
-- [ ] Duplicate handling with priority
-- [ ] Loaded skills tracking
+### Implementation ✅
+- [x] SkillRegistry class with clean API
+- [x] O(1) skill indexing by name using dictionary
+- [x] Duplicate handling (handled by loader, verified by registry)
+- [x] Loaded skills tracking with Set for O(1) operations
+- [x] Immutable data structures for thread safety
+- [x] Comprehensive logging for debugging
+- [x] Complete query and filtering operations
 
 **Files**:
-- `tests/test_registry.py`
+- `tests/test_registry.py` (32 tests, all passing)
 - `src/simple_agent/skills/registry.py`
 
 ---
@@ -276,8 +283,8 @@ For each component:
 | 1 | SkillValidator | ✅ DONE | 12/12 passing | ✅ Complete |
 | 2 | SkillPathResolver | ✅ DONE | 28/28 passing | ✅ Complete |
 | 3 | SkillLoader | ✅ DONE | 26/26 passing | ✅ Complete |
-| 4 | SkillRegistry | ⏳ NEXT | 0 tests | Not started |
-| 5 | PromptBuilder | 📅 PENDING | 0 tests | Not started |
+| 4 | SkillRegistry | ✅ DONE | 32/32 passing | ✅ Complete |
+| 5 | PromptBuilder | ⏳ NEXT | 0 tests | Not started |
 | 6 | ContentLoader | 📅 PENDING | 0 tests | Not started |
 | 7 | Tool Integration | 📅 PENDING | 0 tests | Not started |
 | 8 | Agent Integration | 📅 PENDING | 0 tests | Not started |
@@ -287,11 +294,11 @@ For each component:
 
 ## Next Steps
 
-**Current Focus**: Phase 4 - SkillRegistry
+**Current Focus**: Phase 5 - PromptBuilder
 
-1. Write tests for skill registry in `tests/test_registry.py`
+1. Write tests for prompt builder in `tests/test_prompt_builder.py`
 2. Run tests (expect failures - RED)
-3. Implement SkillRegistry in `src/simple_agent/skills/registry.py`
+3. Implement PromptBuilder in `src/simple_agent/skills/prompt_builder.py`
 4. Run tests until passing (GREEN)
 5. Refactor if needed
-6. Move to Phase 5
+6. Move to Phase 6
